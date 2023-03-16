@@ -22,7 +22,34 @@ public class SubmarineMovements : MonoBehaviour
     public Camera topCamera;
     private static float targetHeading;
 
-    
+    private static bool noisemakerSent = false;
+    private static float noisemakerCounter = 0F;
+    private static float noisemakerSentDelay = 30F;
+
+    private static bool decoySent = false;
+    private static float decoyCounter = 0F;
+    private static float decoySentDelay = 30F;
+
+    [Header("Noisemaker")]
+    public GameObject noisemakerPrefab;
+    private static GameObject noisemakerPrefabStatic;
+    public GameObject noisemakerSpawn;
+    private static GameObject noisemakerSpawnStatic;
+
+    [Header("Decoy")]
+    public GameObject decoyPrefab;
+    public float decoySpeed = 46F;
+    private static float decoySpeedStatic;
+    private static GameObject decoyPrefabStatic;
+    public GameObject decoySpawn;
+    private static GameObject decoySpawnStatic;
+
+    [Header("Contact")]
+    public GameObject torpedo;
+    public static float bearing;
+    public static float range;
+
+
 
     void Start()
     {
@@ -30,14 +57,40 @@ public class SubmarineMovements : MonoBehaviour
         targetSpeed = speed;
         targetHeading = heading;
 
+        //set static variables
+        noisemakerPrefabStatic = noisemakerPrefab;
+        noisemakerSpawnStatic = noisemakerSpawn;
+        decoyPrefabStatic = decoyPrefab;
+        decoySpawnStatic = decoySpawn;
+        decoySpeedStatic = decoySpeed;
+
         rb = sub.GetComponent<Rigidbody>();
         subAnimation = sub.GetComponent<SubAnimation>();
+    }
+
+    private void Update() {
+        //prevent Spam
+        if (noisemakerSent) {
+            noisemakerCounter += Time.deltaTime;
+            if (noisemakerCounter >= noisemakerSentDelay) {
+                noisemakerCounter = 0F;
+                noisemakerSent = false;
+            }
+        }
+        if (decoySent) {
+            decoyCounter += Time.deltaTime;
+            if (decoyCounter >= decoySentDelay) {
+                decoyCounter = 0F;
+                decoySent = false;
+            }
+        }
     }
 
     // Update is called once per frame
     void FixedUpdate()
     {
         moveSub(sub);
+        updateContact();
     }
 
     private void moveSub(GameObject sub) {
@@ -46,7 +99,6 @@ public class SubmarineMovements : MonoBehaviour
 
 
         heading = Mathf.MoveTowards(heading, targetHeading, headingChangeSmoothing * Time.deltaTime * speed);
-        Debug.Log(heading);
         transform.localEulerAngles = new Vector3(0, heading, 0);
         //topCamera.transform.eulerAngles = new Vector3(0, 0, 0);
 
@@ -59,13 +111,40 @@ public class SubmarineMovements : MonoBehaviour
         subAnimation.Spin(speed);
     }
 
+    private void updateContact() {
+        Vector3 dir = transform.position - torpedo.transform.position;
+        range = dir.magnitude;
+        dir = torpedo.transform.InverseTransformDirection(dir);
+        bearing = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+    }
+
     public static void speedChangeRequest(float value) {
-        Debug.Log("targetSpeed = " + value);
         targetSpeed = value;
     }
 
     public static void headingChangeRequest(float value) {
         targetHeading = value;
+    }
+
+    public static void sendNoisemaker() {
+        if (!noisemakerSent) {
+            noisemakerSent = true;
+            GameObject noiseMaker = Instantiate(noisemakerPrefabStatic) as GameObject;
+            Vector3 vectorPos = noisemakerSpawnStatic.transform.position;
+            noiseMaker.transform.position = vectorPos;
+        }
+    }
+
+    public static void sendDecoy() {
+        if (!decoySent) {
+            decoySent = true;
+            GameObject decoy = Instantiate(decoyPrefabStatic) as GameObject;
+            Vector3 vectorPos = decoySpawnStatic.transform.position;
+            decoy.transform.position = vectorPos;
+
+            Rigidbody rb = decoy.GetComponent<Rigidbody>();
+            rb.AddForce(decoy.transform.forward * decoySpeedStatic);
+        }
     }
 
     public static float getSpeed() {
